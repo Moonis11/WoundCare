@@ -290,7 +290,7 @@ async def replace_records(request: Request, user: User = Depends(require_user), 
 
 @app.get("/admin/users", response_model=list[AdminUserOutput])
 def admin_users(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
-    users = db.scalars(select(User).order_by(User.created_at.desc())).all()
+    users = db.scalars(select(User).where(User.id.not_in(select(AdminAccount.user_id))).order_by(User.created_at.desc())).all()
     output = []
     for user in users:
         workspace = db.get(PatientWorkspace, user.id)
