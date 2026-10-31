@@ -17,20 +17,23 @@ from sqlalchemy import Date, DateTime, ForeignKey, String, Text, create_engine, 
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./woundcare.db")
+IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production" or os.getenv("VERCEL") == "1"
+if IS_PRODUCTION and DATABASE_URL.startswith("sqlite"):
+    raise RuntimeError("Set DATABASE_URL to a managed PostgreSQL database for Vercel.")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "")
-if os.getenv("ENVIRONMENT") == "production" and len(SECRET_KEY) < 32:
+if IS_PRODUCTION and len(SECRET_KEY) < 32:
     raise RuntimeError("Set a SECRET_KEY with at least 32 characters in production.")
 if not SECRET_KEY:
     SECRET_KEY = "local-development-only-change-this-secret"
 ALGORITHM = "HS256"
 TOKEN_HOURS = 12
-MAX_RECORD_BYTES = 25 * 1024 * 1024
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_RECORD_BYTES = 3 * 1024 * 1024
+MAX_UPLOAD_BYTES = 3 * 1024 * 1024
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./private_uploads")).resolve()
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -149,7 +152,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="WoundCare API", version="0.1.0", description="Private wound record and photo timeline API. Not a diagnostic service.")
 origins = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if x.strip()]
-if os.getenv("ENVIRONMENT") == "production" and any(origin.startswith("http://localhost") for origin in origins):
+if IS_PRODUCTION and (not origins or any(origin.startswith("http://localhost") for origin in origins)):
     raise RuntimeError("Set CORS_ORIGINS to the deployed frontend origin in production.")
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=False, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type"])
 
@@ -257,7 +260,7 @@ def get_records(user: User = Depends(require_user), db: Session = Depends(get_db
 async def replace_records(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     raw = await request.body()
     if len(raw) > MAX_RECORD_BYTES:
-        raise HTTPException(413, "Record data must be 25 MB or smaller")
+        raise HTTPException(413, "Record data must be 3 MB or smaller")
     try:
         payload = WorkspacePayload.model_validate_json(raw)
     except Exception:
