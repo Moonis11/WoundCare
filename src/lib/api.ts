@@ -1,6 +1,12 @@
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
-export class ApiError extends Error {\n  constructor(message: string, public status: number) { super(message); }\n}\n\nexport async function apiRequest<T>(
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+export async function apiRequest<T>(
   path: string,
   token?: string,
   init: RequestInit = {},
