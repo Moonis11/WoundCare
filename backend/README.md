@@ -1,27 +1,41 @@
 # WoundCare API
 
-FastAPI starter backend for private patient wound records and photo timelines.
+FastAPI API for WoundCare accounts and patient-owned records. Patients can only read and update their own workspace. Admin accounts are created separately using a one-time bootstrap token; there is no doctor role.
 
 ## Run locally
 
-```bash
+\`\`\`bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
 uvicorn main:app --reload
-```
+\`\`\`
 
-Open http://localhost:8000/docs. SQLite is used by default for local development. Set `DATABASE_URL` to a PostgreSQL connection string for a PostgreSQL database.
+The local default is SQLite. For PostgreSQL, set \`DATABASE_URL\` before starting. The API docs are at http://localhost:8000/docs and the health endpoint is /health.
 
-## Environment variables
+## Deploy
 
-- `DATABASE_URL`: PostgreSQL URL (recommended for hosted use); local default is SQLite.
-- `SECRET_KEY`: required strong random secret in production.
-- `CORS_ORIGINS`: comma-separated trusted frontend origins, e.g. `https://your-app.vercel.app`.
-- `UPLOAD_DIR`: private local upload directory for development only.
+Deploy the \`backend/\` directory as its own service. Use the included Dockerfile. Configure these backend environment variables:
 
-## Important deployment notes
+- \`DATABASE_URL\`: managed PostgreSQL connection string.
+- \`SECRET_KEY\`: random value with at least 32 characters; never commit it.
+- \`ADMIN_BOOTSTRAP_TOKEN\`: separate random token, used once to create the admin account.
+- \`ENVIRONMENT=production\`.
+- \`CORS_ORIGINS\`: exact frontend origin(s), comma-separated.
+- \`UPLOAD_DIR\`: private persistent path if using the legacy photo endpoint.
 
-This initial API is a development foundation, not yet production-ready for real patient data. The upload endpoint writes to local disk; ephemeral hosting filesystems are not durable. Before real patient photos are used, connect private object storage (S3-compatible), configure automated database migrations and backups, add rate limiting and account recovery, and complete a security/privacy review. Do not expose the upload directory as a public static folder. The API deliberately does not diagnose wounds or label images as infected/healed.
+Set \`NEXT_PUBLIC_API_URL\` in Vercel to the API's HTTPS origin and redeploy the frontend. The frontend keeps its prior local-only mode when this variable is empty. With the API configured, it stores the bearer token in session storage and syncs the signed-in user's workspace.
+
+### Create the first admin
+
+Keep the bootstrap token private. After the API is deployed, call \`POST /auth/admin/bootstrap\` once with \`full_name\`, \`email\`, \`password\` (at least 12 characters), and \`bootstrap_token\`. Then remove \`ADMIN_BOOTSTRAP_TOKEN\` from the host settings. Public sign-up can only create patient accounts.
+
+## Data model and limits
+
+The API stores each authenticated user's wound records and profile in a private PostgreSQL workspace. The current frontend synchronizes records as JSON, including compressed photo data, with a 25 MB request limit. The existing per-photo upload endpoints also require authentication and serve images with private no-store caching. Admin endpoints expose user summaries and audit metadata, not wound contents.
+
+## Current deployment boundary
+
+This is an initial backend integration, not a completed clinical production service. Do not use real patient data until the service is deployed over HTTPS with managed PostgreSQL backups, durable private photo storage, account recovery, rate limiting, retention/deletion policies, and a security/privacy review. The current JSON sync is intended for a small pilot; it is not a substitute for a scalable media-storage pipeline. The app does not diagnose wounds or prescribe treatment.
