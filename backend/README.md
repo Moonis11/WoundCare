@@ -34,7 +34,7 @@ Use \`POST /auth/admin/bootstrap\` once with \`full_name\`, \`email\`, \`passwor
 
 ## Data and limits
 
-Each patient's wounds and profile are stored in a private PostgreSQL workspace. The current frontend sends compressed photo data as part of the workspace JSON, capped at 3 MB per sync on Vercel. The existing photo upload routes are also authenticated and return private, no-store responses. Admin endpoints return patient account summaries and audit metadata, not clinical record contents.
+Each patient's wounds and profile are stored in a private PostgreSQL workspace. Wound records carry an extensible `woundType` (new records default to `diabetic_foot`) and optional `protocolData` JSON so future wound-specific fields can be added without changing the shared photo, measurement, and timeline model. Only the diabetic-foot MVP workflow is currently implemented; other type values are reserved for later phases. The current frontend sends compressed photo data as part of the workspace JSON, capped at 3 MB per sync on Vercel. The existing photo upload routes are also authenticated and return private, no-store responses. Admin endpoints return patient account summaries and audit metadata, not clinical record contents.
 
 ## Deployment boundary
 
