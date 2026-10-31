@@ -7,6 +7,13 @@ type Wound = { id: string; name: string; location: string; started: string; phot
 type PatientProfile = { fullName: string; email: string; phone: string; birthDate: string; emergencyContact: string };
 const DB_NAME = "woundcare-local";
 const STORE = "records";
+function localDateInputValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -72,7 +79,7 @@ export default function HomePage() {
   const [selected,setSelected] = useState("");
   const [name,setName] = useState("");
   const [location,setLocation] = useState("");
-  const [started,setStarted] = useState(new Date().toISOString().slice(0,10));
+  const [started,setStarted] = useState(localDateInputValue);
   const [note,setNote] = useState("");
   const [file,setFile] = useState<File|null>(null);
   const [preview,setPreview] = useState("");
