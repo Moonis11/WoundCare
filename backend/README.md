@@ -34,8 +34,8 @@ Use \`POST /auth/admin/bootstrap\` once with \`full_name\`, \`email\`, \`passwor
 
 ## Data and limits
 
-Each patient's wounds and profile are stored in a private PostgreSQL workspace. The current frontend sends compressed photo data as part of the workspace JSON, capped at 25 MB per sync. The existing photo upload routes are also authenticated and return private, no-store responses. Admin endpoints return patient account summaries and audit metadata, not clinical record contents.
+Each patient's wounds and profile are stored in a private PostgreSQL workspace. The current frontend sends compressed photo data as part of the workspace JSON, capped at 3 MB per sync on Vercel. The existing photo upload routes are also authenticated and return private, no-store responses. Admin endpoints return patient account summaries and audit metadata, not clinical record contents.
 
 ## Deployment boundary
 
-This is an initial backend integration, not a completed clinical production service. Do not use real patient data until HTTPS, managed database backups, durable private photo storage, account recovery, rate limiting, data retention/deletion policies, and a security/privacy review are complete. The JSON sync approach is for a small pilot, not a scalable media pipeline. The app does not diagnose wounds or prescribe treatment.
+This is an initial backend integration, not a completed clinical production service. Do not use real patient data until HTTPS, managed database backups, durable private photo storage (for example, direct client uploads to Vercel Blob), account recovery, rate limiting, data retention/deletion policies, and a security/privacy review are complete. The JSON sync approach is for a small pilot, not a scalable media pipeline. The app does not diagnose wounds or prescribe treatment.
