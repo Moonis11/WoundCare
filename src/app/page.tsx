@@ -4,6 +4,7 @@ import { Activity, Bell, CalendarDays, Camera, HeartPulse, Home, Image as ImageI
 
 type Photo = { id: string; url: string; date: string; note: string };
 type Wound = { id: string; name: string; location: string; started: string; photos: Photo[] };
+type PatientProfile = { fullName: string; email: string; phone: string; birthDate: string; emergencyContact: string };
 const DB_NAME = "woundcare-local";
 const STORE = "records";
 function openDb(): Promise<IDBDatabase> {
@@ -56,6 +57,14 @@ export default function HomePage() {
   const [notice,setNotice] = useState("");
   const [ready,setReady] = useState(false);
   const [storageError,setStorageError] = useState("");
+  const [profile,setProfile] = useState<PatientProfile>({fullName:"",email:"",phone:"",birthDate:"",emergencyContact:""});
+  const [profileReady,setProfileReady] = useState(false);
+  const [editingProfile,setEditingProfile] = useState(false);
+  const [authMode,setAuthMode] = useState<"register"|"login"|null>(null);
+  const [authName,setAuthName] = useState("");
+  const [authEmail,setAuthEmail] = useState("");
+  const [authPassword,setAuthPassword] = useState("");
+  const [signedIn,setSignedIn] = useState(false);
   const totalPhotos = wounds.reduce((n,w)=>n+w.photos.length,0);
   const allPhotos = wounds.flatMap(w=>w.photos.map(p=>({...p,woundName:w.name}))).sort((a,b)=>b.date.localeCompare(a.date));
 
@@ -67,6 +76,41 @@ export default function HomePage() {
     if (!ready) return;
     writeRecords(wounds).catch(() => setStorageError("Ma’lumotlarni saqlashda xatolik yuz berdi."));
   }, [wounds, ready]);
+  useEffect(() => {
+    const dbPromise = openDb();
+    dbPromise.then(db => {
+      const request = db.transaction(STORE, "readonly").objectStore(STORE).get("profile");
+      request.onsuccess = () => { if (request.result) setProfile(request.result); setProfileReady(true); };
+      request.onerror = () => setProfileReady(true);
+    }).catch(() => setProfileReady(true));
+    setSignedIn(sessionStorage.getItem("woundcare-demo-session") === "active");
+  }, []);
+  async function saveProfile(next:PatientProfile) {
+    setProfile(next);
+    const db = await openDb();
+    await new Promise<void>((resolve,reject) => {
+      const tx = db.transaction(STORE,"readwrite");
+      tx.objectStore(STORE).put(next,"profile");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    setNotice("Profil ma’lumotlari ushbu qurilmada saqlandi.");
+    setEditingProfile(false);
+  }
+  function finishDemoAuth(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const next = authMode === "register"
+      ? {...profile,fullName:authName.trim(),email:authEmail.trim()}
+      : {...profile,email:authEmail.trim()};
+    saveProfile(next).then(() => {
+      sessionStorage.setItem("woundcare-demo-session","active");
+      setSignedIn(true);setAuthMode(null);setAuthPassword("");setNotice("Demo rejimida tizimga kirdingiz.");
+    }).catch(() => setStorageError("Profilni saqlab bo‘lmadi."));
+  }
+  function signOut() {
+    sessionStorage.removeItem("woundcare-demo-session");
+    setSignedIn(false);setNotice("Demo seansidan chiqdingiz.");
+  }
   useEffect(()=>{ if(!file){setPreview("");return;} const url=URL.createObjectURL(file);setPreview(url);return ()=>URL.revokeObjectURL(url); },[file]);
 
   function addWound(e: React.FormEvent<HTMLFormElement>) {
@@ -117,10 +161,24 @@ export default function HomePage() {
         {selectedWound&&<section className="card detail-card"><div className="section-head"><div><h2>{selectedWound.name}</h2><p className="muted">{selectedWound.location} · Started {selectedWound.started}</p></div><button className="small-link danger" onClick={()=>removeWound(selectedWound.id)}><Trash2 size={14}/> Remove demo record</button></div><button className="primary" onClick={()=>setShowUpload(true)}> <Camera size={15}/> Add photo to this wound</button></section>}
       </>}
       {active==="Photo History"&&<><div className="section-head"><h2>Photo timeline</h2><button className="primary" onClick={()=>setShowUpload(true)}><Camera size={15}/> Add photo</button></div>{allPhotos.length?<div className="photo-grid">{allPhotos.map(p=><article className="card photo-card" key={p.id}><img src={p.url} alt="Wound photo preview"/><div className="photo-meta"><b>{p.woundName}</b><span>{new Date(p.date).toLocaleString()}</span>{p.note&&<p>{p.note}</p>}<button className="small-link danger" onClick={()=>{const w=wounds.find(x=>x.photos.some(ph=>ph.id===p.id));if(w)removePhoto(w.id,p.id);}}>Suratni o‘chirish</button></div></article>)}</div>:<div className="card empty"><div><div className="empty-icon"><ImageIcon size={26}/></div><h3>No photos yet</h3><p>Upload a photo and assign it to a wound record to begin a timeline.</p><button className="primary" onClick={()=>setShowUpload(true)}><Camera size={15}/> Upload photo</button></div></div>}</>}
-      {active==="My Profile"&&<div className="card profile-card"><div className="avatar large">U</div><h2>Patient profile</h2><p className="muted">Profile settings and account management will be connected when authentication is implemented.</p></div>}
+      {active==="My Profile"&&<div className="profile-layout">
+        <section className="card profile-card">
+          <div className="profile-heading"><div className="avatar large">{profile.fullName?profile.fullName.charAt(0).toUpperCase():"U"}</div><div><h2>{profile.fullName||"Bemor profili"}</h2><p className="muted">{profile.email||"Profil ma’lumotlarini kiriting"}</p></div></div>
+          <div className="profile-details">
+            <div><span>Telefon</span><b>{profile.phone||"Kiritilmagan"}</b></div>
+            <div><span>Tug‘ilgan sana</span><b>{profile.birthDate||"Kiritilmagan"}</b></div>
+            <div><span>Favqulodda aloqa</span><b>{profile.emergencyContact||"Kiritilmagan"}</b></div>
+          </div>
+          <div className="profile-actions"><button className="primary" onClick={()=>setEditingProfile(true)}>Profilni tahrirlash</button>{signedIn?<button className="secondary" onClick={signOut}>Demo seansidan chiqish</button>:<button className="secondary" onClick={()=>setAuthMode("login")}>Kirish / Ro‘yxatdan o‘tish</button>}</div>
+          <p className="demo-auth-warning">Demo: haqiqiy akkaunt va parol server ulanmaguncha yaratilmaydi. Parol saqlanmaydi.</p>
+        </section>
+        <section className="card profile-side"><h3>Profil nima uchun kerak?</h3><p>Kontakt ma’lumotlaringizni tartibli saqlash va keyinchalik xavfsiz akkauntga ulash uchun.</p><div className="profile-tip"><ShieldCheck size={18}/> Hozircha kiritilgan ma’lumotlar faqat shu brauzerda saqlanadi.</div></section>
+      </div>}
       <section className="bottom-grid"><div className="notice"><div className="notice-title"><ShieldCheck size={17}/> Important</div>WoundCare helps document and compare photos over time. It does not diagnose wounds or replace advice from a qualified healthcare professional.</div><div className="demo-note"><b>Mahalliy saqlash rejimi</b><p>Yozuvlar va suratlar faqat shu brauzer va qurilmada saqlanadi. Ular serverga yuborilmaydi va boshqa qurilmada ko‘rinmaydi. Maxfiy yoki haqiqiy bemor suratlarini yuklamang.</p></div></section>
     </main>
     <nav className="mobile-menu">{nav.slice(0,4).map(item=>{const Icon=item.icon;return <button key={item.label} className={active===item.label?"active":""} onClick={()=>{setActive(item.label);if(item.label==="Upload Photo")setShowUpload(true);}}><Icon size={18}/>{item.label==="Dashboard"?"Home":item.label==="My Wounds"?"Wounds":item.label==="Upload Photo"?"Upload":"History"}</button>;})}</nav>
+    {editingProfile&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEditingProfile(false);}}><form className="modal" onSubmit={e=>{e.preventDefault();saveProfile(profile).catch(()=>setStorageError("Profilni saqlab bo‘lmadi."));}}><div className="modal-head"><div><h2>Profilni tahrirlash</h2><p>Kontakt ma’lumotlaringizni kiriting.</p></div><button type="button" className="icon-button" onClick={()=>setEditingProfile(false)}><X size={19}/></button></div><label>To‘liq ism<input required value={profile.fullName} onChange={e=>setProfile({...profile,fullName:e.target.value})} placeholder="Ism va familiya"/></label><label>Email<input type="email" value={profile.email} onChange={e=>setProfile({...profile,email:e.target.value})} placeholder="name@example.com"/></label><label>Telefon<input type="tel" value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="+998 90 123 45 67"/></label><label>Tug‘ilgan sana<input type="date" value={profile.birthDate} onChange={e=>setProfile({...profile,birthDate:e.target.value})}/></label><label>Favqulodda aloqa (ism va telefon)<input value={profile.emergencyContact} onChange={e=>setProfile({...profile,emergencyContact:e.target.value})} placeholder="Yaqin insoningiz va telefon raqami"/></label><div className="modal-actions"><button type="button" className="secondary" onClick={()=>setEditingProfile(false)}>Bekor qilish</button><button className="primary" type="submit">Saqlash</button></div></form></div>}
+    {authMode&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setAuthMode(null);}}><form className="modal" onSubmit={finishDemoAuth}><div className="modal-head"><div><h2>{authMode==="register"?"Ro‘yxatdan o‘tish":"Tizimga kirish"}</h2><p>Bu hozircha server ulanmagan demo ko‘rinishidir.</p></div><button type="button" className="icon-button" onClick={()=>setAuthMode(null)}><X size={19}/></button></div>{authMode==="register"&&<label>To‘liq ism<input required value={authName} onChange={e=>setAuthName(e.target.value)} placeholder="Ism va familiya"/></label>}<label>Email<input type="email" required value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="name@example.com"/></label><label>Parol (faqat demo tekshiruvi)<input type="password" required minLength={6} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="Kamida 6 belgi"/></label><p className="demo-auth-warning">Parol serverga yuborilmaydi va saqlanmaydi. Haqiqiy autentifikatsiya server ulangandan keyin qo‘shiladi.</p><div className="modal-actions"><button type="button" className="secondary" onClick={()=>setAuthMode(authMode==="register"?"login":"register")}>{authMode==="register"?"Kirish":"Ro‘yxatdan o‘tish"}</button><button className="primary" type="submit">Davom etish</button></div></form></div>}
     {showAdd&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowAdd(false);}}><form className="modal" onSubmit={addWound}><div className="modal-head"><div><h2>Add a wound</h2><p>Create a separate record for tracking.</p></div><button type="button" className="icon-button" onClick={()=>setShowAdd(false)}><X size={19}/></button></div><label>Wound name<input required value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Left foot wound"/></label><label>Body location<input required value={location} onChange={e=>setLocation(e.target.value)} placeholder="e.g. Left heel"/></label><label>First noticed<input type="date" required value={started} onChange={e=>setStarted(e.target.value)}/></label><div className="modal-actions"><button type="button" className="secondary" onClick={()=>setShowAdd(false)}>Cancel</button><button className="primary" type="submit">Create record</button></div></form></div>}
     {showUpload&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowUpload(false);}}><form className="modal" onSubmit={addPhoto}><div className="modal-head"><div><h2>Upload a photo</h2><p>Add a photo to one wound’s timeline.</p></div><button type="button" className="icon-button" onClick={()=>setShowUpload(false)}><X size={19}/></button></div><label>Select wound<select required value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Choose a wound</option>{wounds.map(w=><option key={w.id} value={w.id}>{w.name} · {w.location}</option>)}</select></label><label className="upload-zone"><UploadCloud size={25}/><b>{file?file.name:"Choose a photo"}</b><span>JPG, PNG or WEBP · max 10 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>{preview&&<img className="preview" src={preview} alt="Selected photo preview"/>}<label>Note (optional)<textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a short note about this photo."/></label><div className="modal-actions"><button type="button" className="secondary" onClick={()=>setShowUpload(false)}>Cancel</button><button className="primary" type="submit" disabled={!file||!selected||file.size>10*1024*1024}>Add photo</button></div>{file&&file.size>10*1024*1024&&<p className="error">This file is larger than 10 MB.</p>}{!wounds.length&&<p className="error">Create a wound record before uploading a photo.</p>}</form></div>}
   </div>;
