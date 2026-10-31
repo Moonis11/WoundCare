@@ -57,3 +57,15 @@ body{background:var(--wc-aqua-bg);color:var(--wc-ink)}
 @media(max-width:640px){
   .mobile-menu button.active{color:var(--wc-teal-deep)}
 }
+
+.photo-guide{display:grid;gap:7px;padding:13px;border:1px solid #d6e9e3;border-left:3px solid var(--wc-orange);border-radius:12px;background:#f1faf7;color:#52736d;font-size:11px;line-height:1.5}
+.photo-guide span{display:block}
+.reminder-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 4px}
+.reminder-controls span{font-size:10px;color:#78938c}
+.trend-chart svg{display:block;width:100%;height:auto;overflow:visible;margin-top:6px}
+.trend-chart svg text{font-size:10px;fill:#66847d}
+.checkin-form .checkin-check{display:flex;align-items:center;gap:8px}
+.checkin-form .checkin-check input{width:auto;accent-color:#168a78}
+.checkin-form input[type=range]{accent-color:#168a78}
+.checkin-form small{line-height:1.5}
+@media(max-width:640px){.reminder-controls{align-items:flex-start;flex-direction:column}.reminder-controls .secondary{width:100%}.trend-chart svg text{font-size:12px}}
