@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { Activity, Bell, CalendarDays, Camera, HeartPulse, Home, Image as ImageIcon, Plus, ShieldCheck, UserRound, X, UploadCloud, Trash2 } from "lucide-react";
 
 type Photo = { id: string; url: string; date: string; note: string };
-type Wound = { id: string; name: string; location: string; started: string; photos: Photo[] };
+type WoundNote = { id:string; date:string; text:string };
+type WoundMeasurement = { id:string; date:string; lengthMm:number; widthMm:number };
+type WoundStatus = "Faol" | "Kuzatuvda" | "Yakunlangan";
+type Wound = { id: string; name: string; location: string; started: string; photos: Photo[]; status?:WoundStatus; notes?:WoundNote[]; measurements?:WoundMeasurement[]; archived?:boolean };
 type PatientProfile = { fullName: string; email: string; phone: string; birthDate: string; emergencyContact: string };
 const DB_NAME = "woundcare-local";
 const STORE = "records";
@@ -69,7 +72,7 @@ async function compressImageToDataUrl(file: File): Promise<string> {
     return fileToDataUrl(file);
   }
 }
-const nav = [{label:"Dashboard",title:"Bosh sahifa",icon:Home},{label:"My Wounds",title:"Yaralarim",icon:HeartPulse},{label:"Upload Photo",title:"Surat yuklash",icon:Camera},{label:"Photo History",title:"Suratlar tarixi",icon:ImageIcon},{label:"My Profile",title:"Profilim",icon:UserRound}];
+const nav = [{label:"Dashboard",title:"Bosh sahifa",icon:Home},{label:"My Wounds",title:"Yaralarim",icon:HeartPulse},{label:"Upload Photo",title:"Surat yuklash",icon:Camera},{label:"Photo History",title:"Suratlar tarixi",icon:ImageIcon},{label:"My Profile",title:"Profilim",icon:UserRound},{label:"Admin",title:"Admin panel",icon:ShieldCheck}];
 
 export default function HomePage() {
   const [active,setActive] = useState("Dashboard");
@@ -102,7 +105,23 @@ export default function HomePage() {
   const [photoFrom,setPhotoFrom] = useState("");
   const [photoTo,setPhotoTo] = useState("");
   const [photoWoundFilter,setPhotoWoundFilter] = useState("all");
+  const [woundSearch,setWoundSearch] = useState("");
+  const [woundStatusFilter,setWoundStatusFilter] = useState("all");
+  const [showArchived,setShowArchived] = useState(false);
+  const [isAdmin,setIsAdmin] = useState(false);
+  const [editingWound,setEditingWound] = useState<Wound|null>(null);
+  const [editWoundName,setEditWoundName] = useState("");
+  const [editWoundLocation,setEditWoundLocation] = useState("");
+  const [editWoundStarted,setEditWoundStarted] = useState("");
+  const [editWoundStatus,setEditWoundStatus] = useState<WoundStatus>("Faol");
+  const [measurementLength,setMeasurementLength] = useState("");
+  const [measurementWidth,setMeasurementWidth] = useState("");
+  const [careNote,setCareNote] = useState("");
   const totalPhotos = wounds.reduce((n,w)=>n+w.photos.length,0);
+  const activeWounds = wounds.filter(w=>!w.archived);
+  const visibleWounds = wounds.filter(w=>(showArchived?!!w.archived:!w.archived)&&
+    (w.name.toLowerCase().includes(woundSearch.toLowerCase())||w.location.toLowerCase().includes(woundSearch.toLowerCase()))&&
+    (woundStatusFilter==="all"||(w.status||"Faol")===woundStatusFilter));
   const allPhotos = wounds.flatMap(w=>w.photos.map(p=>({...p,woundName:w.name}))).sort((a,b)=>b.date.localeCompare(a.date));
   const filteredPhotos = allPhotos.filter(p=>{
     const date = p.date.slice(0,10);
@@ -198,6 +217,43 @@ export default function HomePage() {
     if (!window.confirm("Bu yara yozuvi va unga tegishli suratlarni o‘chirmoqchimisiz?")) return;
     setWounds(current=>current.filter(w=>w.id!==id));if(selected===id)setSelected("");
   }
+  function beginEditWound(wound:Wound) {
+    setEditingWound(wound);setEditWoundName(wound.name);setEditWoundLocation(wound.location);
+    setEditWoundStarted(wound.started);setEditWoundStatus(wound.status||"Faol");
+  }
+  function saveWoundEdit(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();if(!editingWound)return;
+    setWounds(current=>current.map(w=>w.id===editingWound.id?{...w,name:editWoundName.trim(),location:editWoundLocation.trim(),started:editWoundStarted,status:editWoundStatus}:w));
+    setEditingWound(null);setNotice("Yara ma’lumotlari yangilandi.");
+  }
+  function addMeasurement(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();if(!selectedWound)return;
+    const length=Number(measurementLength),width=Number(measurementWidth);
+    if(!(length>0&&width>0))return;
+    const entry:WoundMeasurement={id:crypto.randomUUID(),date:new Date().toISOString(),lengthMm:length,widthMm:width};
+    setWounds(current=>current.map(w=>w.id===selectedWound.id?{...w,measurements:[entry,...(w.measurements||[])]}:w));
+    setMeasurementLength("");setMeasurementWidth("");setNotice("O‘lcham qaydi saqlandi.");
+  }
+  function addCareNote(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();if(!selectedWound||!careNote.trim())return;
+    const entry:WoundNote={id:crypto.randomUUID(),date:new Date().toISOString(),text:careNote.trim()};
+    setWounds(current=>current.map(w=>w.id===selectedWound.id?{...w,notes:[entry,...(w.notes||[])]}:w));
+    setCareNote("");setNotice("Parvarish qaydi saqlandi.");
+  }
+  function toggleArchive(wound:Wound) {
+    const next=!wound.archived;
+    if(next&&!window.confirm("Bu yara yozuvini arxivga o‘tkazmoqchimisiz?"))return;
+    setWounds(current=>current.map(w=>w.id===wound.id?{...w,archived:next}:w));
+    setNotice(next?"Yara arxivlandi.":"Yara arxivdan qaytarildi.");
+  }
+  function exportWoundsCsv() {
+    const rows=[["Yara","Joylashuv","Boshlangan sana","Holat","Suratlar soni","Uzunlik (mm)","Kenglik (mm)","Parvarish qaydlari"],
+      ...wounds.map(w=>[w.name,w.location,w.started,w.status||"Faol",String(w.photos.length),String(w.measurements?.[0]?.lengthMm??""),String(w.measurements?.[0]?.widthMm??""),(w.notes||[]).map(n=>n.text).join(" | ")])];
+    const csv="\\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\\n");
+    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+    const link=document.createElement("a");link.href=url;link.download="woundcare-hisobot.csv";link.click();URL.revokeObjectURL(url);
+  }
+  function printWoundReport() { window.print(); }
   const selectedWound=wounds.find(w=>w.id===selected);
 
   return <div className="shell">
