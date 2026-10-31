@@ -34,7 +34,7 @@ ALGORITHM = "HS256"
 TOKEN_HOURS = 12
 MAX_RECORD_BYTES = 3 * 1024 * 1024
 MAX_UPLOAD_BYTES = 3 * 1024 * 1024
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./private_uploads")).resolve()
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/tmp/woundcare_uploads" if os.getenv("VERCEL") == "1" else "./private_uploads")).resolve()
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
