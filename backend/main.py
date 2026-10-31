@@ -108,7 +108,8 @@ class PhotoOutput(BaseModel):
 
 class AdminAccount(Base):
     __tablename__ = "admin_accounts"
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(String(20), primary_key=True, default="primary")
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class PatientWorkspace(Base):
@@ -183,7 +184,7 @@ def require_user(credentials: HTTPAuthorizationCredentials | None = Depends(bear
     return current_user(credentials.credentials, db)
 
 def require_admin(user: User = Depends(require_user), db: Session = Depends(get_db)) -> User:
-    if not db.get(AdminAccount, user.id):
+    if not db.scalar(select(AdminAccount).where(AdminAccount.user_id == user.id)):
         raise HTTPException(status_code=403, detail="Administrator access required")
     return user
 
@@ -198,6 +199,8 @@ def health():
 def register(data: RegisterInput, db: Session = Depends(get_db)):
     if len(data.password) < 10:
         raise HTTPException(400, "Password must be at least 10 characters")
+    if len(data.password) > 256:
+        raise HTTPException(400, "Password must be 256 characters or fewer")
     email = data.email.lower()
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(409, "An account with this email already exists")
@@ -225,17 +228,19 @@ def bootstrap_admin(data: AdminBootstrapInput, db: Session = Depends(get_db)):
         raise HTTPException(503, "Admin bootstrap is not configured")
     if not hmac.compare_digest(data.bootstrap_token, expected):
         raise HTTPException(403, "Invalid bootstrap token")
-    if db.scalar(select(AdminAccount.user_id).limit(1)):
+    if db.get(AdminAccount, "primary"):
         raise HTTPException(409, "An administrator has already been created")
     if len(data.password) < 12:
         raise HTTPException(400, "Administrator password must be at least 12 characters")
+    if len(data.password) > 256:
+        raise HTTPException(400, "Administrator password must be 256 characters or fewer")
     email = data.email.lower()
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(409, "An account with this email already exists")
     user = User(full_name=data.full_name.strip(), email=email, password_hash=password_hash.hash(data.password))
     db.add(user)
     db.flush()
-    db.add(AdminAccount(user_id=user.id))
+    db.add(AdminAccount(id="primary", user_id=user.id))
     record_audit(db, user, "admin.bootstrap", "account", user.id)
     db.commit()
     db.refresh(user)
