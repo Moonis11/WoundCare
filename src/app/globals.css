@@ -69,3 +69,6 @@ body{background:var(--wc-aqua-bg);color:var(--wc-ink)}
 .checkin-form input[type=range]{accent-color:#168a78}
 .checkin-form small{line-height:1.5}
 @media(max-width:640px){.reminder-controls{align-items:flex-start;flex-direction:column}.reminder-controls .secondary{width:100%}.trend-chart svg text{font-size:12px}}
+
+.api-admin-heading{display:flex;align-items:center;gap:10px}
+.api-server-note{padding:12px 14px;border-radius:12px;background:#e7f5f1;color:#52736d;font-size:11px;line-height:1.6}
