@@ -249,7 +249,7 @@ export default function HomePage() {
   function exportWoundsCsv() {
     const rows=[["Yara","Joylashuv","Boshlangan sana","Holat","Suratlar soni","Uzunlik (mm)","Kenglik (mm)","Parvarish qaydlari"],
       ...wounds.map(w=>[w.name,w.location,w.started,w.status||"Faol",String(w.photos.length),String(w.measurements?.[0]?.lengthMm??""),String(w.measurements?.[0]?.widthMm??""),(w.notes||[]).map(n=>n.text).join(" | ")])];
-    const csv="\\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\\n");
+    const csv="\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
     const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
     const link=document.createElement("a");link.href=url;link.download="woundcare-hisobot.csv";link.click();URL.revokeObjectURL(url);
   }
