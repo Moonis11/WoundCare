@@ -162,6 +162,8 @@ export default function HomePage() {
   const visiblePhotos = [...filteredPhotos].filter(p=>(!favoritesOnly||!!p.favorite)&&(!photoSearch||p.woundName.toLowerCase().includes(photoSearch.toLowerCase())||p.note.toLowerCase().includes(photoSearch.toLowerCase()))).sort((a,b)=>photoSort==="oldest"?a.date.localeCompare(b.date):b.date.localeCompare(a.date));
   const upcomingReviews = activeWounds.filter(w=>w.followUpDate).sort((a,b)=>(a.followUpDate||"").localeCompare(b.followUpDate||""));
 
+  useEffect(()=>{try{const saved=localStorage.getItem("woundcare-language");if(saved==="uz"||saved==="ru"||saved==="en")setLanguage(saved);}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem("woundcare-language",language);}catch{}},[language]);
   useEffect(() => {
     readRecords().then(records => { setWounds(records); setReady(true); })
       .catch(() => { setStorageError("Brauzer xotirasiga ulanish imkoni bo‘lmadi."); setReady(true); });
