@@ -1,6 +1,6 @@
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
-export async function apiRequest<T>(
+export class ApiError extends Error {\n  constructor(message: string, public status: number) { super(message); }\n}\n\nexport async function apiRequest<T>(
   path: string,
   token?: string,
   init: RequestInit = {},
@@ -15,7 +15,7 @@ export async function apiRequest<T>(
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = typeof payload.detail === "string" ? payload.detail : "API request failed.";
-    throw new Error(detail);
+    throw new ApiError(detail, response.status);
   }
   return payload as T;
 }
