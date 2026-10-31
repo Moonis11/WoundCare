@@ -41,18 +41,26 @@ function fileToDataUrl(file: Blob): Promise<string> {
   });
 }
 async function compressImageToDataUrl(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const maxSide = 1600;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext("2d");
-  if (!context) { bitmap.close(); return fileToDataUrl(file); }
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const compressed = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.82));
-  return fileToDataUrl(compressed || file);
+  try {
+    if (typeof createImageBitmap !== "function") return fileToDataUrl(file);
+    const bitmap = await createImageBitmap(file);
+    const maxSide = 1600;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) { bitmap.close(); return fileToDataUrl(file); }
+    context.fillStyle = "#FFFFFF";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const compressed = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.82));
+    if (!compressed || compressed.size >= file.size) return fileToDataUrl(file);
+    return fileToDataUrl(compressed);
+  } catch {
+    return fileToDataUrl(file);
+  }
 }
 const nav = [{label:"Dashboard",title:"Bosh sahifa",icon:Home},{label:"My Wounds",title:"Yaralarim",icon:HeartPulse},{label:"Upload Photo",title:"Surat yuklash",icon:Camera},{label:"Photo History",title:"Suratlar tarixi",icon:ImageIcon},{label:"My Profile",title:"Profilim",icon:UserRound}];
 
