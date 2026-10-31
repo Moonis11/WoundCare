@@ -24,3 +24,36 @@
 
 
 .language-switch{display:grid;gap:6px;margin:0 0 18px;padding:0 12px}.language-switch span{font-size:10px;color:#78938c;font-weight:600}.language-switch select{width:100%;padding:9px 10px;border:1px solid #dcebe6;border-radius:9px;background:#fff;color:#234b43;font:inherit;font-size:11px;outline:none}.language-switch select:focus{border-color:#168a78;box-shadow:0 0 0 3px #e7f5f1}
+
+/* WoundCare palette: calm aqua surfaces, teal actions, restrained orange signals */
+:root{
+  --wc-ink:#173f39;
+  --wc-teal-deep:#145b52;
+  --wc-teal:#168a78;
+  --wc-aqua-bg:#f0f9f7;
+  --wc-aqua:#e7f5f1;
+  --wc-aqua-soft:#d3ece5;
+  --wc-muted:#52736d;
+  --wc-border:#d6e9e3;
+  --wc-orange:#e59a4f;
+  --wc-danger:#b42318;
+}
+body{background:var(--wc-aqua-bg);color:var(--wc-ink)}
+.nav-item.active{box-shadow:inset 3px 0 0 var(--wc-teal)}
+.nav-item.active svg,.mobile-menu button.active svg{color:var(--wc-teal)}
+.notice,.admin-warning,.demo-auth-warning{
+  background:#f1faf7;
+  border:1px solid #d6e9e3;
+  border-left:3px solid var(--wc-orange);
+  color:var(--wc-muted);
+}
+.notice-title svg{color:var(--wc-orange)}
+.demo-auth-warning{border-left-width:3px}
+.dot{background:var(--wc-orange)}
+.danger,.error,.history-line button{color:var(--wc-danger)}
+.primary{background:var(--wc-teal-deep)}
+.primary:hover{background:var(--wc-teal)}
+.card,.quick-action,.wound-card,.admin-row{box-shadow:0 4px 18px rgba(20,91,82,.04)}
+@media(max-width:640px){
+  .mobile-menu button.active{color:var(--wc-teal-deep)}
+}
