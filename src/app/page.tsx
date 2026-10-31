@@ -8,7 +8,8 @@ type WoundNote = { id:string; date:string; text:string };
 type WoundMeasurement = { id:string; date:string; lengthMm:number; widthMm:number };
 type WoundCheckIn = { id:string; date:string; pain:number; drainage:"Yo‘q"|"Oz"|"O‘rtacha"|"Ko‘p"; odor:boolean; colorChange:boolean; edgeChange:boolean; note:string };
 type WoundStatus = "Faol" | "Kuzatuvda" | "Yakunlangan";
-type Wound = { id: string; name: string; location: string; started: string; photos: Photo[]; status?:WoundStatus; notes?:WoundNote[]; measurements?:WoundMeasurement[]; checks?:WoundCheckIn[]; archived?:boolean; priority?: "Oddiy"|"Muhim"|"Yuqori"; followUpDate?:string; description?:string; tags?:string[] };
+type WoundType = "diabetic_foot" | "post_surgical" | "pressure_injury" | "burn" | "traumatic" | "chronic" | "other";
+type Wound = { id: string; name: string; location: string; started: string; photos: Photo[]; woundType?: WoundType; protocolData?: Record<string, unknown>; status?:WoundStatus; notes?:WoundNote[]; measurements?:WoundMeasurement[]; checks?:WoundCheckIn[]; archived?:boolean; priority?: "Oddiy"|"Muhim"|"Yuqori"; followUpDate?:string; description?:string; tags?:string[] };
 type PatientProfile = { fullName: string; email: string; phone: string; birthDate: string; emergencyContact: string };
 type ServerUser = {id:string;full_name:string;email:string;created_at:string;wound_count:number};
 const DB_NAME = "woundcare-local";
@@ -303,7 +304,7 @@ export default function HomePage() {
   }
   function addWound(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();if(API_BASE&&!apiToken){setNotice(t("Sign in to save server records."));return;}
-    const wound:Wound={id:crypto.randomUUID(),name:name.trim(),location:location.trim(),started,photos:[]};
+    const wound:Wound={id:crypto.randomUUID(),name:name.trim(),location:location.trim(),started,photos:[],woundType:"diabetic_foot",protocolData:{}};
     setWounds(current=>[wound,...current]);setSelected(wound.id);setName("");setLocation("");setShowAdd(false);setActive("My Wounds");setNotice("Yara yozuvi ushbu qurilmada yaratildi.");
   }
   function handleFileSelection(nextFile:File|null) {
