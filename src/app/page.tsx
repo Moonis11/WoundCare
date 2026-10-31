@@ -323,7 +323,7 @@ export default function HomePage() {
     const measurements=[...(wound.measurements||[])].reverse();
     const notes=[...(wound.notes||[])].reverse();
     const info=(label:string,value:string)=>`<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value||"—")}</p>`;
-    const photoHtml=photos.map(photo=>`<figure><img src="${photo.url}" alt="${escapeHtml(t("Suratlar"))}"><figcaption>${escapeHtml(new Date(photo.date).toLocaleString(language))}${photo.note?` · ${escapeHtml(photo.note)}`:""}</figcaption></figure>`).join("");
+    const photoHtml=photos.map(photo=>`<figure><img src="${escapeHtml(photo.url.startsWith("data:image/")?photo.url:"")}" alt="${escapeHtml(t("Suratlar"))}"><figcaption>${escapeHtml(new Date(photo.date).toLocaleString(language))}${photo.note?` · ${escapeHtml(photo.note)}`:""}</figcaption></figure>`).join("");
     const html=`<!doctype html><html lang="${language}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(t("Yara hisoboti"))}</title>
       <style>body{font:15px Arial,sans-serif;color:#173f39;max-width:850px;margin:32px auto;padding:0 18px}h1,h2{color:#145b52}section{border:1px solid #d6e9e3;border-radius:14px;padding:16px;margin:16px 0}p{line-height:1.5}figure{display:inline-block;width:min(46%,360px);vertical-align:top;margin:8px}img{width:100%;height:auto;border-radius:8px}figcaption{font-size:12px;color:#52736d;margin-top:5px}@media(max-width:600px){figure{width:100%;margin:8px 0}}</style>
       <body><h1>${escapeHtml(t("Yara hisoboti"))}</h1><p>${escapeHtml(t("Ushbu hisobot yara tarixini va oxirgi suratlarni o‘z ichiga oladi."))}</p><section>
