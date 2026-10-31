@@ -1,24 +1,41 @@
-# WoundCare
+# WoundCare API
 
-WoundCare records wound photos, measurements, patient-reported observations, and follow-up dates. It does not diagnose wounds or recommend treatment.
+FastAPI service for patient-owned wound records and a single administrator role. Patients can access only their own workspace. There is no doctor role.
 
-## Frontend
+## Run locally
 
 \`\`\`bash
-npm install
-npm run dev
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+uvicorn main:app --reload
 \`\`\`
 
-Without \`NEXT_PUBLIC_API_URL\`, the app keeps its browser-local demo mode. To use server accounts, set \`NEXT_PUBLIC_API_URL\` to the deployed FastAPI HTTPS origin in the Vercel project settings, then redeploy.
+The local default is SQLite. Set \`DATABASE_URL\` to use PostgreSQL. API docs are at http://localhost:8000/docs and health is at /health.
 
-## Backend
+## Deploy
 
-See [backend/README.md](backend/README.md) for local FastAPI setup, PostgreSQL configuration, first-admin bootstrap, and deployment.
+Deploy the \`backend/\` directory as a separate service with the included Dockerfile. Configure:
 
-The API stores one private wound workspace per signed-in patient. Patients can only access their own workspace. The admin account is provisioned separately; there is no doctor role yet.
+- \`DATABASE_URL\`: managed PostgreSQL connection string.
+- \`SECRET_KEY\`: a random value with at least 32 characters.
+- \`ADMIN_BOOTSTRAP_TOKEN\`: a separate long random value for one-time admin creation.
+- \`ENVIRONMENT=production\`.
+- \`CORS_ORIGINS\`: exact frontend origin(s), comma-separated.
+- \`UPLOAD_DIR\`: private persistent path if using the legacy photo upload endpoints.
 
-## Deployment status
+Set \`NEXT_PUBLIC_API_URL\` in Vercel to the API's HTTPS origin and redeploy. The frontend retains browser-local demo mode when that variable is unset. In API mode, bearer tokens are held in session storage and the authenticated patient's workspace is synchronized with the API.
 
-Repository code includes a FastAPI service and PostgreSQL-backed workspace API. A live API is not available until the backend is deployed with a managed PostgreSQL database and its environment variables are configured. The Railway app connection currently needs reauthentication before I can provision or deploy it.
+## Create the first admin
 
-Do not use real patient data until HTTPS, database backups, durable photo storage, access policies, account recovery, retention/deletion, and security/privacy review are complete.
+Use \`POST /auth/admin/bootstrap\` once with \`full_name\`, \`email\`, \`password\` (at least 12 characters), and \`bootstrap_token\`. Keep the bootstrap token secret, then remove it from the hosting environment. Public registration can create patient accounts only.
+
+## Data and limits
+
+Each patient's wounds and profile are stored in a private PostgreSQL workspace. The current frontend sends compressed photo data as part of the workspace JSON, capped at 25 MB per sync. The existing photo upload routes are also authenticated and return private, no-store responses. Admin endpoints return patient account summaries and audit metadata, not clinical record contents.
+
+## Deployment boundary
+
+This is an initial backend integration, not a completed clinical production service. Do not use real patient data until HTTPS, managed database backups, durable private photo storage, account recovery, rate limiting, data retention/deletion policies, and a security/privacy review are complete. The JSON sync approach is for a small pilot, not a scalable media pipeline. The app does not diagnose wounds or prescribe treatment.
