@@ -402,4 +402,5 @@ function PhotoCompare({wounds,woundId,setWoundId,firstId,setFirstId,secondId,set
     <p className="compare-disclaimer">Suratlar faqat vizual taqqoslash uchun. Bu ko‘rinish yara bitgani yoki infeksiya bor-yo‘qligini aniqlamaydi.</p>
   </section>;
 }
-\nfunction WoundCard({wound,onOpen}:{wound:Wound;onOpen:()=>void}){return <button className="card wound-card" onClick={onOpen}><div className="wound-card-icon"><HeartPulse size={20}/></div><div className="wound-card-copy"><b>{wound.name}</b><span>{wound.location}</span><small>{wound.photos.length} ta surat · Boshlangan sana: {wound.started}</small></div><span className="arrow">→</span></button>}
+
+function WoundCard({wound,onOpen}:{wound:Wound;onOpen:()=>void}){return <button className="card wound-card" onClick={onOpen}><div className="wound-card-icon"><HeartPulse size={20}/></div><div className="wound-card-copy"><b>{wound.name}</b><span>{wound.location}</span><small>{wound.photos.length} ta surat · Boshlangan sana: {wound.started}</small></div><span className="arrow">→</span></button>}
