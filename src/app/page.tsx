@@ -183,10 +183,10 @@ export default function HomePage() {
     let cancelled=false;
     setRemoteLoaded(false);
     (async()=>{
-      const remote=await apiRequest<{wounds:Wound[];profile:PatientProfile}>("/records",apiToken);
+      const remote=await apiRequest<{wounds:Wound[];profile:Partial<PatientProfile>}>("/records",apiToken);
       const account=await apiRequest<{full_name:string;email:string}>("/me",apiToken);
       let records=Array.isArray(remote.wounds)?remote.wounds:[];
-      let remoteProfile=remote.profile||{fullName:account.full_name,email:account.email,phone:"",birthDate:"",emergencyContact:""};
+      let remoteProfile:PatientProfile={fullName:remote.profile?.fullName||account.full_name,email:remote.profile?.email||account.email,phone:remote.profile?.phone||"",birthDate:remote.profile?.birthDate||"",emergencyContact:remote.profile?.emergencyContact||""};
       if(records.length===0) {
         const localRecords=await readRecords().catch(()=>[]);
         const localProfile=await readProfile().catch(()=>null);
