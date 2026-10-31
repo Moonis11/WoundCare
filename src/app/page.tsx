@@ -99,8 +99,16 @@ export default function HomePage() {
   const [compareFirstId,setCompareFirstId] = useState("");
   const [compareSecondId,setCompareSecondId] = useState("");
   const [viewPhoto,setViewPhoto] = useState<{photo:Photo;woundName:string}|null>(null);
+  const [photoFrom,setPhotoFrom] = useState("");
+  const [photoTo,setPhotoTo] = useState("");
+  const [photoWoundFilter,setPhotoWoundFilter] = useState("all");
   const totalPhotos = wounds.reduce((n,w)=>n+w.photos.length,0);
   const allPhotos = wounds.flatMap(w=>w.photos.map(p=>({...p,woundName:w.name}))).sort((a,b)=>b.date.localeCompare(a.date));
+  const filteredPhotos = allPhotos.filter(p=>{
+    const date = p.date.slice(0,10);
+    return (photoWoundFilter==="all"||wounds.find(w=>w.name===p.woundName)?.id===photoWoundFilter)&&
+      (!photoFrom||date>=photoFrom)&&(!photoTo||date<=photoTo);
+  });
 
   useEffect(() => {
     readRecords().then(records => { setWounds(records); setReady(true); })
@@ -218,7 +226,7 @@ export default function HomePage() {
       </>}
       {active==="Photo History"&&<><div className="section-head"><h2>Suratlar ketma-ketligi</h2><button className="primary" onClick={openUpload}><Camera size={15}/> Surat qo‘shish</button></div>
         {wounds.some(w=>w.photos.length>=2)&&<PhotoCompare wounds={wounds} woundId={compareWoundId} setWoundId={setCompareWoundId} firstId={compareFirstId} setFirstId={setCompareFirstId} secondId={compareSecondId} setSecondId={setCompareSecondId}/>}
-        {allPhotos.length?<div className="photo-grid">{allPhotos.map(p=><article className="card photo-card" key={p.id}><button type="button" className="photo-open" onClick={()=>setViewPhoto({photo:p,woundName:p.woundName})} aria-label="Suratni kattalashtirib ko‘rish"><img src={p.url} alt="Yara surati"/></button><div className="photo-meta"><b>{p.woundName}</b><span>{new Date(p.date).toLocaleString()}</span>{p.note&&<p>{p.note}</p>}<button className="small-link danger" onClick={()=>{const w=wounds.find(x=>x.photos.some(ph=>ph.id===p.id));if(w)removePhoto(w.id,p.id);}}>Suratni o‘chirish</button></div></article>)}</div>:<div className="card empty"><div><div className="empty-icon"><ImageIcon size={26}/></div><h3>Hozircha surat yo‘q</h3><p>Surat yuklang va uni tegishli yara yozuviga biriktiring.</p><button className="primary" onClick={openUpload}><Camera size={15}/> Surat yuklash</button></div></div>}</>}
+        <section className="card photo-filters"><div><b>Suratlarni filtrlash</b><span>Yara yoki sana oralig‘ini tanlang</span></div><label>Yara<select value={photoWoundFilter} onChange={e=>setPhotoWoundFilter(e.target.value)}><option value="all">Barcha yaralar</option>{wounds.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label><label>Dan<input type="date" value={photoFrom} max={photoTo||undefined} onChange={e=>setPhotoFrom(e.target.value)}/></label><label>Gacha<input type="date" value={photoTo} min={photoFrom||undefined} onChange={e=>setPhotoTo(e.target.value)}/></label><button type="button" className="small-link" onClick={()=>{setPhotoWoundFilter("all");setPhotoFrom("");setPhotoTo("");}}>Filtrni tozalash</button></section>{filteredPhotos.length?<div className="photo-grid">{filteredPhotos.map(p=><article className="card photo-card" key={p.id}><button type="button" className="photo-open" onClick={()=>setViewPhoto({photo:p,woundName:p.woundName})} aria-label="Suratni kattalashtirib ko‘rish"><img src={p.url} alt="Yara surati"/></button><div className="photo-meta"><b>{p.woundName}</b><span>{new Date(p.date).toLocaleString()}</span>{p.note&&<p>{p.note}</p>}<button className="small-link danger" onClick={()=>{const w=wounds.find(x=>x.photos.some(ph=>ph.id===p.id));if(w)removePhoto(w.id,p.id);}}>Suratni o‘chirish</button></div></article>)}</div>:allPhotos.length?<div className="card empty"><div><h3>Bu filtr bo‘yicha surat topilmadi</h3><p>Sana oralig‘ini o‘zgartiring yoki filtrni tozalang.</p></div></div>:<div className="card empty"><div><div className="empty-icon"><ImageIcon size={26}/></div><h3>Hozircha surat yo‘q</h3><p>Surat yuklang va uni tegishli yara yozuviga biriktiring.</p><button className="primary" onClick={openUpload}><Camera size={15}/> Surat yuklash</button></div></div>}</>}
       {active==="My Profile"&&<div className="profile-layout">
         <section className="card profile-card">
           <div className="profile-heading"><div className="avatar large">{profile.fullName?profile.fullName.charAt(0).toUpperCase():"U"}</div><div><h2>{profile.fullName||"Bemor profili"}</h2><p className="muted">{profile.email||"Profil ma’lumotlarini kiriting"}</p></div></div>
