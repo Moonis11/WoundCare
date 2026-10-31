@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import { Activity, Bell, CalendarDays, Camera, HeartPulse, Home, Image as ImageIcon, Plus, ShieldCheck, UserRound, X, UploadCloud, Trash2 } from "lucide-react";
 
-type Photo = { id: string; url: string; date: string; note: string };
+type Photo = { id: string; url: string; date: string; note: string; favorite?:boolean };
 type WoundNote = { id:string; date:string; text:string };
 type WoundMeasurement = { id:string; date:string; lengthMm:number; widthMm:number };
 type WoundStatus = "Faol" | "Kuzatuvda" | "Yakunlangan";
-type Wound = { id: string; name: string; location: string; started: string; photos: Photo[]; status?:WoundStatus; notes?:WoundNote[]; measurements?:WoundMeasurement[]; archived?:boolean };
+type Wound = { id: string; name: string; location: string; started: string; photos: Photo[]; status?:WoundStatus; notes?:WoundNote[]; measurements?:WoundMeasurement[]; archived?:boolean; priority?: "Oddiy"|"Muhim"|"Yuqori"; followUpDate?:string; description?:string; tags?:string[] };
 type PatientProfile = { fullName: string; email: string; phone: string; birthDate: string; emergencyContact: string };
 const DB_NAME = "woundcare-local";
 const STORE = "records";
@@ -117,6 +117,17 @@ export default function HomePage() {
   const [measurementLength,setMeasurementLength] = useState("");
   const [measurementWidth,setMeasurementWidth] = useState("");
   const [careNote,setCareNote] = useState("");
+  const [photoSearch,setPhotoSearch] = useState("");
+  const [photoSort,setPhotoSort] = useState("newest");
+  const [favoritesOnly,setFavoritesOnly] = useState(false);
+  const [editPhoto,setEditPhoto] = useState<{woundId:string;photo:Photo}|null>(null);
+  const [editPhotoNote,setEditPhotoNote] = useState("");
+  const [editWoundPriority,setEditWoundPriority] = useState<"Oddiy"|"Muhim"|"Yuqori">("Oddiy");
+  const [editWoundFollowUp,setEditWoundFollowUp] = useState("");
+  const [editWoundDescription,setEditWoundDescription] = useState("");
+  const [editWoundTags,setEditWoundTags] = useState("");
+  const [storageEstimate,setStorageEstimate] = useState("");
+  const [backupInput,setBackupInput] = useState<HTMLInputElement|null>(null);
   const totalPhotos = wounds.reduce((n,w)=>n+w.photos.length,0);
   const activeWounds = wounds.filter(w=>!w.archived);
   const visibleWounds = wounds.filter(w=>(showArchived?!!w.archived:!w.archived)&&
@@ -128,6 +139,8 @@ export default function HomePage() {
     return (photoWoundFilter==="all"||wounds.find(w=>w.name===p.woundName)?.id===photoWoundFilter)&&
       (!photoFrom||date>=photoFrom)&&(!photoTo||date<=photoTo);
   });
+  const visiblePhotos = [...filteredPhotos].filter(p=>(!favoritesOnly||!!p.favorite)&&(!photoSearch||p.woundName.toLowerCase().includes(photoSearch.toLowerCase())||p.note.toLowerCase().includes(photoSearch.toLowerCase()))).sort((a,b)=>photoSort==="oldest"?a.date.localeCompare(b.date):b.date.localeCompare(a.date));
+  const upcomingReviews = activeWounds.filter(w=>w.followUpDate).sort((a,b)=>(a.followUpDate||"").localeCompare(b.followUpDate||""));
 
   useEffect(() => {
     readRecords().then(records => { setWounds(records); setReady(true); })
@@ -220,10 +233,12 @@ export default function HomePage() {
   function beginEditWound(wound:Wound) {
     setEditingWound(wound);setEditWoundName(wound.name);setEditWoundLocation(wound.location);
     setEditWoundStarted(wound.started);setEditWoundStatus(wound.status||"Faol");
+    setEditWoundPriority(wound.priority||"Oddiy");setEditWoundFollowUp(wound.followUpDate||"");
+    setEditWoundDescription(wound.description||"");setEditWoundTags((wound.tags||[]).join(", "));
   }
   function saveWoundEdit(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault();if(!editingWound)return;
-    setWounds(current=>current.map(w=>w.id===editingWound.id?{...w,name:editWoundName.trim(),location:editWoundLocation.trim(),started:editWoundStarted,status:editWoundStatus}:w));
+    setWounds(current=>current.map(w=>w.id===editingWound.id?{...w,name:editWoundName.trim(),location:editWoundLocation.trim(),started:editWoundStarted,status:editWoundStatus,priority:editWoundPriority,followUpDate:editWoundFollowUp,description:editWoundDescription.trim(),tags:editWoundTags.split(",").map(t=>t.trim()).filter(Boolean)}:w));
     setEditingWound(null);setNotice("Yara ma’lumotlari yangilandi.");
   }
   function addMeasurement(e:React.FormEvent<HTMLFormElement>) {
@@ -239,6 +254,49 @@ export default function HomePage() {
     const entry:WoundNote={id:crypto.randomUUID(),date:new Date().toISOString(),text:careNote.trim()};
     setWounds(current=>current.map(w=>w.id===selectedWound.id?{...w,notes:[entry,...(w.notes||[])]}:w));
     setCareNote("");setNotice("Parvarish qaydi saqlandi.");
+  }
+  function togglePhotoFavorite(woundId:string,photoId:string) {
+    setWounds(current=>current.map(w=>w.id===woundId?{...w,photos:w.photos.map(p=>p.id===photoId?{...p,favorite:!p.favorite}:p)}:w));
+  }
+  function savePhotoNote(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();if(!editPhoto)return;
+    setWounds(current=>current.map(w=>w.id===editPhoto.woundId?{...w,photos:w.photos.map(p=>p.id===editPhoto.photo.id?{...p,note:editPhotoNote.trim()}:p)}:w));
+    setEditPhoto(null);setNotice("Surat izohi yangilandi.");
+  }
+  function downloadPhoto(photo:Photo,woundName:string) {
+    const link=document.createElement("a");link.href=photo.url;link.download=(woundName.replace(/[^a-z0-9_-]/gi,"-")||"yara")+"-"+photo.date.slice(0,10)+".jpg";link.click();
+  }
+  function deleteCareNote(noteId:string) {
+    if(!selectedWound||!window.confirm("Ushbu qaydni o‘chirasizmi?"))return;
+    setWounds(current=>current.map(w=>w.id===selectedWound.id?{...w,notes:(w.notes||[]).filter(n=>n.id!==noteId)}:w));
+  }
+  function deleteMeasurement(measurementId:string) {
+    if(!selectedWound||!window.confirm("Ushbu o‘lchov yozuvini o‘chirasizmi?"))return;
+    setWounds(current=>current.map(w=>w.id===selectedWound.id?{...w,measurements:(w.measurements||[]).filter(m=>m.id!==measurementId)}:w));
+  }
+  function exportSingleWound(wound:Wound) {
+    const rows=[["Yara",wound.name],["Joylashuv",wound.location],["Holat",wound.status||"Faol"],["Muhimlik",wound.priority||"Oddiy"],["Boshlangan sana",wound.started],["Qayta ko‘rik",wound.followUpDate||""],["Tavsif",wound.description||""],["Suratlar soni",String(wound.photos.length)],["O‘lchovlar",...(wound.measurements||[]).map(m=>new Date(m.date).toLocaleDateString()+" "+m.lengthMm+"x"+m.widthMm+" mm")],["Qaydlar",...(wound.notes||[]).map(n=>n.text)]];
+    const csv="\\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\\n");
+    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="yara-"+wound.id+".csv";a.click();URL.revokeObjectURL(url);
+  }
+  function exportBackup() {
+    const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),wounds,profile},null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="woundcare-zaxira.json";a.click();URL.revokeObjectURL(url);
+  }
+  async function importBackup(file:File) {
+    try {
+      const parsed=JSON.parse(await file.text());
+      if(!parsed||parsed.version!==1||!Array.isArray(parsed.wounds))throw new Error("format");
+      if(!window.confirm("Zaxira nusxasidagi ma’lumotlar joriy yozuvlar bilan almashtiriladi. Davom etasizmi?"))return;
+      setWounds(parsed.wounds);if(parsed.profile)setProfile(parsed.profile);setNotice("Zaxira nusxasi yuklandi.");
+    } catch { setStorageError("Zaxira fayli noto‘g‘ri yoki o‘qib bo‘lmadi."); }
+  }
+  async function checkStorage() {
+    const estimate=await navigator.storage?.estimate?.();
+    if(!estimate){setStorageEstimate("Brauzer xotirasi hajmini aniqlab bo‘lmadi.");return;}
+    const used=Math.round((estimate.usage||0)/1024/1024*10)/10;
+    const quota=Math.round((estimate.quota||0)/1024/1024);
+    setStorageEstimate("Taxminan "+used+" MB ishlatilgan / "+quota+" MB mavjud.");
   }
   function toggleArchive(wound:Wound) {
     const next=!wound.archived;
