@@ -394,7 +394,8 @@ export default function HomePage() {
   function fromBase64(value:string) { const binary=atob(value); return Uint8Array.from(binary,char=>char.charCodeAt(0)); }
   async function deriveBackupKey(password:string,salt:Uint8Array) {
     const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveKey"]);
-    return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+    const saltBuffer=salt.buffer.slice(salt.byteOffset,salt.byteOffset+salt.byteLength) as ArrayBuffer;
+    return crypto.subtle.deriveKey({name:"PBKDF2",salt:saltBuffer,iterations:250000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
   }
   async function exportBackup() {
     const password=window.prompt(t("Enter a backup password (at least 8 characters)."));
